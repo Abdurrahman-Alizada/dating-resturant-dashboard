@@ -39,7 +39,8 @@ const Resturants = () => {
 
       {restaurants.map((restaurant) => (
         <Link
-          to={`/resturant-detail/${restaurant._id}`}
+          to={{pathname:`/resturant-detail/${restaurant._id}`}}
+          state={{ menuURL: restaurant.menuURL, fileName:restaurant.name }}
           key={restaurant._id}
           className="bg-gray-100 rounded-lg flex justify-between p-4 mt-5"
         >

@@ -7,6 +7,7 @@ const Sidebar = () => {
   const SIDEBAR_TABS = [
     { name: "Your resturants", path: "/resturants" },
     { name: "Add resturant", path: "/list-your-resturant" },
+    { name: "Reservation request", path: "/reservation-request" },
   ];
 
   const handleTabClick = (path: string) => {

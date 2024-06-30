@@ -85,12 +85,19 @@ function Login() {
 
   return (
     <>
-      <div className="h-screen max-w-screen bg-white flex justify-center items-center ">
-        <div className="lg:w-1/2 text-center -mr-96 mt-24 ">
+      <div className="h-screen flex justify-center items-center "
+        style={{
+          backgroundImage: "url(/bg.jpeg)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}>
+    {/* 
+      <div className="lg:w-1/2 text-center -mr-96 mt-24 ">
           <div className=" w-[620px] rounded-full">
             <img src="/signin.png" alt="sigin" />
           </div>
         </div>
+    */}  
         <div className="shadow-2xl bg-white rounded-t-full z-50 flex p-20 flex-col h-full">
           <div className="mt-12 flex flex-col justify-between ">
             <h1 className="text-2xl xl:text-3xl font-bold ">Sign in</h1>

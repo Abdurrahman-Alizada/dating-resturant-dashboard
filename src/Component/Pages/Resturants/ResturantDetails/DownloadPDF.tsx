@@ -1,17 +1,14 @@
 import React from "react";
+import { useLocation } from 'react-router-dom'
 
-interface DownloadPDFButtonProps {
-  pdfUrl: string;
-  fileName: string;
-}
 
-const DownloadPDFButton: React.FC<DownloadPDFButtonProps> = ({
-  pdfUrl,
-  fileName,
-}) => {
-    const handleDownload = async () => {
+const DownloadPDFButton: React.FC = () => {
+  const location = useLocation()
+  const {menuURL} = location.state
+const fileName =""
+  const handleDownload = async () => {
         try {
-          const response = await fetch(pdfUrl);
+          const response = await fetch(menuURL);
           const blob = await response.blob();
           const url = window.URL.createObjectURL(blob);
           

@@ -9,6 +9,7 @@ import Resturants from "../Component/Pages/Resturants/Resturants"
 import NotFound from "../Component/Pages/NotFound/NotFound";
 import ListYourResturantIndex from "../Component/Pages/ListYourResturant/ListYourResturantIndex";
 import ResturantDetails from "../Component/Pages/Resturants/ResturantDetails/ResturantDetailsIndex";
+import ReservationRequestIndex from "../Component/Pages/ReservationRequests/ReservationRequestIndex";
 
 const routes = createBrowserRouter([
   {
@@ -47,6 +48,10 @@ const routes = createBrowserRouter([
       {
         path: "list-your-resturant",
         element: <ListYourResturantIndex />,
+      },
+      {
+        path: "reservation-request",
+        element: <ReservationRequestIndex />,
       },
       {
         path: "resturant-detail/:resturantId",
