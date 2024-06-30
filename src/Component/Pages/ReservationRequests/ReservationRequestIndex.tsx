@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../Helpers/Firebase'; // Adjust the import path accordingly
 import { Reservation } from '../../../Helpers/types'; // Adjust the import path accordingly
+import moment from 'moment';
 
 const ReservationList: React.FC = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -43,7 +44,7 @@ const ReservationList: React.FC = () => {
           <div key={reservation.id} className="bg-white shadow-md rounded-lg p-4">
             <h2 className="text-xl font-semibold">{reservation.restaurantName}</h2>
             <p className="text-gray-700">Requested by: {reservation.userName}</p>
-            <p className="text-gray-700">Time: {reservation.time}</p>
+            <p className="text-gray-700">Time:  {moment(reservation.time).format('HH:mm, DD-MM-YYYY')}</p>
             <p className={`text-sm font-medium mt-2 ${reservation.status === 'pending' ? 'text-yellow-500' : reservation.status === 'accepted' ? 'text-green-500' : 'text-red-500'}`}>
               Status: {reservation.status}
             </p>
