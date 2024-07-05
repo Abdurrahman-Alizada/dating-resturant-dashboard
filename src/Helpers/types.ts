@@ -9,3 +9,13 @@ export interface Reservation {
     status: 'pending' | 'accepted' | 'rejected';
   }
   
+  export interface OpeningTime {
+    day: string;
+    fromHour: string;
+    fromMinute: string;
+    fromAmPm: string;
+    toHour: string;
+    toMinute: string;
+    toAmPm: string;
+    isOff: boolean;
+  }

@@ -25,17 +25,20 @@ const ReservationList: React.FC = () => {
 
         // Fetch user information for each reservation
         const userIds = fetchedReservations.map(res => res.userId);
+        
         const userPromises = userIds.map(id => getDoc(doc(db, 'users', id)));
         const userDocs = await Promise.all(userPromises);
         const usersData: { [key: string]: { name: string } } = {};
+        // const usersData: { [key: string]: User } = {};
         userDocs.forEach(userDoc => {
           if (userDoc.exists()) {
             usersData[userDoc.id] = userDoc.data() as { name: string };
           }
         });
+        // console.log("user data", userDocs)
+
         setUsers(usersData);
 
-        console.log("first", fetchedReservations);
       }
       setLoading(false);
     };

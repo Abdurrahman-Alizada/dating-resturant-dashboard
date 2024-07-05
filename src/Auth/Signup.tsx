@@ -6,8 +6,9 @@ import {
 } from "firebase/auth";
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { auth } from "../Helpers/Firebase";
+import { auth, firestore } from "../Helpers/Firebase"; // Make sure to import firestore
 import { ErrorMessage, Field, Form, Formik } from "formik";
+import { doc, setDoc } from "firebase/firestore";
 
 function Signup() {
   const navigate = useNavigate();
@@ -43,7 +44,25 @@ function Signup() {
       return;
     }
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      setLoader(true);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      const userId = user.uid;
+      const userDetails = {
+        name: email.split("@")[0], // Extract name from email, customize as needed
+        email,
+        userId,
+        password,
+        isOnline: true,
+        lastOnlineTime: new Date().toISOString(),
+      };
+
+      // Save user details in Firestore
+      await setDoc(doc(firestore, "restaurantOwners", userId), userDetails);
+
+      // Store user ID in localStorage
+      localStorage.setItem("userId", userId);
+
       navigate("/login");
       setLoader(false);
     } catch (err: any) {
@@ -57,18 +76,34 @@ function Signup() {
     return re.test(email);
   };
 
-  const validatePassword = (password: string) => {
+  const validatePassword = (password:string) => {
     const re = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,}$/;
     return re.test(password);
   };
+
   const handleGoogleLogin = async () => {
     setLoader(true);
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      const token = await result.user.getIdToken();
+      const userId = user.uid;
+      const token = await user.getIdToken();
+      const userDetails = {
+        name: user.displayName,
+        email: user.email,
+        userId,
+        isOnline: true,
+        lastOnlineTime: new Date().toISOString(),
+      };
+
+      // Save user details in Firestore
+      await setDoc(doc(firestore, "restaurantOwners", userId), userDetails);
+
+      // Store user ID in localStorage
+      localStorage.setItem("userId", userId);
       localStorage.setItem("token", token);
+
       navigate("/resturants");
       setLoader(false);
     } catch (error: any) {
@@ -85,12 +120,6 @@ function Signup() {
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}>
-        {/* <div className="lg:w-1/2 text-center -mr-96 mt-24">
-          <div className="w-[620px] rounded-full">
-            <img src="/signin.png" alt="signin" />
-          </div>
-          
-        </div> */}
         <div className="shadow-2xl bg-white rounded-t-full z-50 flex p-20 flex-col h-full">
           <div className="mt-12 flex flex-col justify-between">
             <h1 className="text-2xl xl:text-3xl font-bold">Sign up</h1>
@@ -136,13 +165,6 @@ function Signup() {
                 </div>
                 {error && <span className="mt-10 text-red-600">{error}</span>}
 
-                {/* <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    >
-                    {isSubmitting ? "Loading..." : "Sign Up"}
-                    </button> */}
-
                 {!loader ? (
                   <button
                     type="submit"
@@ -170,164 +192,65 @@ function Signup() {
                         fill="#E5E7EB"
                       />
                       <path
-                        d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                        d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5652 10.4717 44.0585 10.1071C47.9245 9.47964 51.8739 9.45606 55.7864 10.0376C60.8783 10.8046 65.7866 12.6436 70.1807 15.4642C74.5749 18.2849 78.3772 22.0472 81.2926 26.5173C83.6066 29.7198 85.3664 33.2534 86.5045 36.9769C87.2886 39.4118 89.5422 40.9381 91.9676 40.301C93.9676 39.7639 95.3552 39.0409 93.9676 39.0409Z"
                         fill="currentColor"
                       />
                     </svg>
-                    Sign up...
+                    Processing...
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  className="mt-5 tracking-wide font-semibold bg-[#f8f8f8] text-gray-100 w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none"
+                >
+                  <div className="bg-white p-2 rounded-full">
+                    <svg
+                      className="w-6 h-6"
+                      viewBox="0 0 48 48"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M24 9.5c3.5 0 6.2 1.5 8.1 2.7l6-6.1C34.6 3.4 29.8 1.5 24 1.5 14.7 1.5 6.8 7.3 3.4 15.2l7 5.4C12.1 14.5 17.5 9.5 24 9.5z"
+                        fill="#EA4335"
+                      />
+                      <path
+                        d="M46.5 24.5c0-1.7-.2-3.5-.5-5H24v9.5h12.8C35.8 33 30.4 37.5 24 37.5c-6.5 0-12-4.3-14.2-10.2l-7 5.4c3.4 7.9 11.3 13.7 21.2 13.7 6.1 0 11.3-2.1 15.5-5.6 4.4-3.8 7-9.5 7-16.3z"
+                        fill="#4285F4"
+                      />
+                      <path
+                        d="M9.8 28.4C9 26.3 8.5 24.1 8.5 21.8s.5-4.5 1.3-6.6l-7-5.4C1 13.5 0 17.1 0 21.8c0 4.7 1 8.3 2.8 11.9l7-5.3z"
+                        fill="#FBBC05"
+                      />
+                      <path
+                        d="M24 48c6.8 0 12.6-2.3 16.8-6.2l-7.7-6.4c-2.1 1.6-4.9 2.6-9.1 2.6-5.9 0-10.8-4-12.5-9.5l-7.3 5.6c3.8 7.5 11.5 12.9 20.2 12.9z"
+                        fill="#34A853"
+                      />
+                      <path d="M0 0h48v48H0z" fill="none" />
+                    </svg>
+                  </div>
+                  <span className="ml-4 text-black">Sign up with Google</span>
+                </button>
+                <div className="my-12 border-b text-center">
+                  <div className="leading-none px-2 inline-block text-sm text-gray-600 tracking-wide font-medium bg-white transform translate-y-1/2">
+                    Or sign Up with e-mail
+                  </div>
+                </div>
               </form>
+              <div className="mx-auto max-w-xs relative">
+                <div className="mb-2">
+                  <Link to="/login">
+                    <span className=" text-xs font-display font-semibold text-gray-700 cursor-pointer">
+                      Already a user? Login
+                    </span>
+                  </Link>
+                </div>
+              </div>
             </div>
-            <p className="ml-2 text-sm text-gray-900 mt-8">
-              Already have an account.{" "}
-              <Link to={"/login"} className="text-[#97d721] font-bold">
-                Login
-              </Link>
-            </p>
           </div>
         </div>
       </div>
-      {/* <section className="bg-gray-50 dark:bg-gray-900">
-        <div className="flex flex-col items-center justify-center px-6 py-8 mx-auto md:h-screen lg:py-0">
-          
-          <div className="w-full bg-white rounded-lg shadow dark:border md:mt-0 sm:max-w-md xl:p-0 dark:bg-gray-800 dark:border-gray-700">
-            <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
-              <h1 className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white">
-                Sign up to your account
-              </h1>
-              <form className="space-y-4 md:space-y-6" action="#">
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                    Your email
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    id="email"
-                    value={email}
-                    required
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                    placeholder="name@company.com"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    id="password"
-                    placeholder="••••••••"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="remember"
-                        aria-describedby="remember"
-                        type="checkbox"
-                        className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-primary-300 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-primary-600 dark:ring-offset-gray-800"
-                      />
-                    </div>
-                    <div className="ml-3 text-sm">
-                      <label className="text-gray-500 dark:text-gray-300">
-                        Remember me
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {!loader ? (
-                  <button
-                    type="submit"
-                    onClick={(e) => handleSignup(e)}
-                    className="w-full text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
-                  >
-                    Sign up
-                  </button>
-                ) : (
-                  <button
-                    disabled
-                    type="button"
-                    className="w-full text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
-                  >
-                    <svg
-                      aria-hidden="true"
-                      role="status"
-                      className="inline w-4 h-4 mr-3 text-white animate-spin"
-                      viewBox="0 0 100 101"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                        fill="#E5E7EB"
-                      />
-                      <path
-                        d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                    Sign up...
-                  </button>
-                )}
-                <p className="text-sm font-light text-gray-500 dark:text-gray-400">
-                  Do you have an account already?
-                  <a
-                    onClick={() => navigate("/login")}
-                    className="font-medium text-primary-600 hover:underline dark:text-primary-500 cursor-pointer"
-                  >
-                    Log in
-                  </a>
-                </p>
-              </form>
-              <button
-                aria-label="Continue with google"
-                role="button"
-                onClick={handleGoogleLogin}
-                className="focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-700 py-3.5 px-4 border rounded-lg border-gray-700 flex items-center w-full mt-10"
-              >
-                <svg
-                  width={19}
-                  height={20}
-                  viewBox="0 0 19 20"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M18.9892 10.1871C18.9892 9.36767 18.9246 8.76973 18.7847 8.14966H9.68848V11.848H15.0277C14.9201 12.767 14.3388 14.1512 13.047 15.0812L13.0289 15.205L15.905 17.4969L16.1042 17.5173C17.9342 15.7789 18.9892 13.221 18.9892 10.1871Z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M9.68813 19.9314C12.3039 19.9314 14.4999 19.0455 16.1039 17.5174L13.0467 15.0813C12.2286 15.6682 11.1306 16.0779 9.68813 16.0779C7.12612 16.0779 4.95165 14.3395 4.17651 11.9366L4.06289 11.9465L1.07231 14.3273L1.0332 14.4391C2.62638 17.6946 5.89889 19.9314 9.68813 19.9314Z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M4.17667 11.9366C3.97215 11.3165 3.85378 10.6521 3.85378 9.96562C3.85378 9.27905 3.97215 8.6147 4.16591 7.99463L4.1605 7.86257L1.13246 5.44363L1.03339 5.49211C0.37677 6.84302 0 8.36005 0 9.96562C0 11.5712 0.37677 13.0881 1.03339 14.4391L4.17667 11.9366Z"
-                    fill="#FBBC05"
-                  />
-                  <path
-                    d="M9.68807 3.85336C11.5073 3.85336 12.7344 4.66168 13.4342 5.33718L16.1684 2.59107C14.4892 0.985496 12.3039 0 9.68807 0C5.89885 0 2.62637 2.23672 1.0332 5.49214L4.16573 7.99466C4.95162 5.59183 7.12608 3.85336 9.68807 3.85336Z"
-                    fill="#EB4335"
-                  />
-                </svg>
-                {userEmail ? (
-                  <p className="text-primary-500 ml-4">{userEmail}</p>
-                ) : (
-                  <p className="text-base font-medium ml-4 text-gray-700">
-                    Continue with Google
-                  </p>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section> */}
     </>
   );
 }

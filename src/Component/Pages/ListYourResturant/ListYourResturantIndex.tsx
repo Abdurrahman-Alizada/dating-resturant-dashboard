@@ -1,4 +1,3 @@
-import firebase from "firebase/app";
 import { useEffect, useState } from "react";
 import { storage, firestore, auth } from "../../../Helpers/Firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -6,6 +5,7 @@ import { addDoc, collection } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import "firebase/auth";
 import { onAuthStateChanged } from "firebase/auth";
+import { OpeningTime } from "../../../Helpers/types";
 
 function ListYourResturantIndex() {
   const navigate = useNavigate();
@@ -13,11 +13,17 @@ function ListYourResturantIndex() {
   const [restaurantName, setRestaurantName] = useState("");
   const [category, setCategory] = useState("");
   const [address, setAddress] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("");
-  const [productService, setProductService] = useState("");
-  const [specialize, setSpecialize] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
   const [description, setDescription] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [imagesUrl, setImagesUrl] = useState<string[]>([]);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [menuPdfUrl, setMenuPdfUrl] = useState<File | null>(null);
+  const [info, setInfo] = useState<{ name: string; imageUrl: string }[]>([]);
+  const [openingTime, setOpeningTime] = useState<OpeningTime[]>([]);
+
+  const [saftyInstruction, setSaftyInstruction] = useState("");
+  const [additionalInfo, setAdditionalInfo] = useState("");
   const [isLoading, setLoading] = useState(false); // State to track loading state
   const [error, setError] = useState<string | null>(null); // State to track errors
   const [userId, serUserId] = useState("");
@@ -25,15 +31,15 @@ function ListYourResturantIndex() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        serUserId(user.uid)
+        serUserId(user.uid);
       } else {
-         alert("first login then add resturant")
+        alert("first login then add restaurant");
       }
     });
     return unsubscribe;
   }, []);
 
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+  const onMenuChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     if (e.target.files) {
       const selectedFile = e.target.files[0];
       // Ensure the file is a PDF
@@ -41,11 +47,22 @@ function ListYourResturantIndex() {
         console.error("Only PDF files are allowed");
         return;
       }
-      setFile(selectedFile);
+      setMenuPdfUrl(selectedFile);
     }
   };
 
-  const generateUniqueFileName = (originalName: string): string => {
+  const onImageChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+      const urls = selectedFiles.map((file) => URL.createObjectURL(file));
+      setImagesUrl(urls);
+    }
+  };
+
+  const generateUniqueFileName = (
+    originalName: string,
+    restaurantName: string
+  ): string => {
     const timestamp = new Date().getTime();
     const randomString = Math.random().toString(36).substring(7); // Generate a random string
     const fileExtension = originalName.split(".").pop(); // Get file extension
@@ -53,10 +70,65 @@ function ListYourResturantIndex() {
     return uniqueFileName;
   };
 
+  const uploadImages = async (
+    imageFiles: File[],
+    restaurantName: string
+  ): Promise<string[]> => {
+    try {
+      const urls: string[] = [];
+
+      for (const imageFile of imageFiles) {
+        const uniqueFileName = generateUniqueFileName(
+          imageFile.name,
+          restaurantName
+        );
+        const storageRef = ref(storage, `restaurant_images/${uniqueFileName}`);
+        const snapshot = await uploadBytes(storageRef, imageFile);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        urls.push(downloadURL);
+      }
+
+      return urls;
+    } catch (error) {
+      console.error("Error uploading images:", error);
+      throw new Error("Failed to upload images. Please try again.");
+    }
+  };
+
+  const daysOfWeek = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+
+  const handleTimeChange = (dayIndex: number, field: string, value: string) => {
+    const updatedOpeningTime = [...openingTime];
+    updatedOpeningTime[dayIndex] = {
+      ...updatedOpeningTime[dayIndex],
+      [field]: value,
+    };
+    setOpeningTime(updatedOpeningTime);
+  };
+
+  const handleCheckboxChange = (dayIndex: number, isChecked: boolean) => {
+    const updatedOpeningTime = [...openingTime];
+    updatedOpeningTime[dayIndex] = {
+      ...updatedOpeningTime[dayIndex],
+      isOff: isChecked,
+    };
+    setOpeningTime(updatedOpeningTime);
+  };
+  const formatTime = (hour: any, minute: any, amPm: any) => {
+    return `${hour||'8'}:${minute||'00'} ${amPm||'AM'}`;
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!file) {
+    if (!menuPdfUrl) {
       console.error("Please upload a PDF file");
       return;
     }
@@ -64,38 +136,60 @@ function ListYourResturantIndex() {
     setLoading(true); // Start loading state
 
     try {
-      // Generate unique file name
-      const uniqueFileName = generateUniqueFileName(file.name);
+      // Upload menu PDF
+      const uniqueMenuFileName = generateUniqueFileName(
+        menuPdfUrl.name,
+        restaurantName
+      );
+      const menuStorageRef = ref(storage, `hotel_menus/${uniqueMenuFileName}`);
+      const menuSnapshot = await uploadBytes(menuStorageRef, menuPdfUrl);
+      const menuDownloadURL = await getDownloadURL(menuSnapshot.ref);
 
-      // Upload file to Firebase Storage
-      const storageRef = ref(storage, `hotel_menus/${uniqueFileName}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      // Upload images
+      const uploadedImageUrls = await uploadImages(
+        imagesUrl.map((url) => new File([url], "image.png")),
+        restaurantName
+      );
 
-      // Add restaurant info to Firestore
+      const formattedOpeningTime = openingTime.map((time,index) => ({
+        day: daysOfWeek[index],
+        from: formatTime(time.fromHour, time.fromMinute, time.fromAmPm),
+        to: formatTime(time.toHour, time.toMinute, time.toAmPm),
+      }));
+      // Add restaurant to Firestore
       await addDoc(collection(firestore, "restaurants"), {
         name: restaurantName,
         category: category,
         address: address,
-        paymentMethod: paymentMethod,
-        productService: productService,
-        specialize: specialize,
+        latitude: latitude,
+        longitude: longitude,
         description: description,
-        menuURL: downloadURL,
-        userId: userId
+        imagesUrl: uploadedImageUrls,
+        phoneNumber: phoneNumber,
+        menuPdfUrl: menuDownloadURL,
+        info: info,
+        openingTime: formattedOpeningTime,
+        saftyInstruction: saftyInstruction,
+        additionalInfo: additionalInfo,
+        userId: userId,
       });
 
       console.log("Restaurant created successfully!");
 
-      // Reset form fields after successful submission (if needed)
+      // Clear form fields and state
       setRestaurantName("");
       setCategory("");
       setAddress("");
-      setPaymentMethod("");
-      setProductService("");
-      setSpecialize("");
+      setLatitude("");
+      setLongitude("");
       setDescription("");
-      setFile(null);
+      setImagesUrl([]);
+      setPhoneNumber("");
+      setMenuPdfUrl(null);
+      setInfo([]);
+      setOpeningTime([]);
+      setSaftyInstruction("");
+      setAdditionalInfo("");
       navigate("/resturants");
     } catch (error) {
       console.error("Error creating restaurant:", error);
@@ -104,10 +198,11 @@ function ListYourResturantIndex() {
       setLoading(false); // Stop loading state
     }
   };
+
   return (
-    <div className="p-5 shadow-lg ">
+    <div className="p-5 shadow-lg">
       <p className="text-lg font-bold mb-10">List your Restaurant</p>
-      <form className="max-w-6xl " onSubmit={handleSubmit}>
+      <form className="max-w-6xl" onSubmit={handleSubmit}>
         <div className="flex flex-wrap justify-between items-center">
           <div className="mb-5 w-6/12">
             <label className="block mb-2 text-md font-medium text-gray-900 dark:text-white">
@@ -125,7 +220,8 @@ function ListYourResturantIndex() {
               <option>Cafe</option>
             </select>
           </div>
-          <div className="mb-5  w-5/12">
+
+          <div className="mb-5 w-5/12">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
               Business Name
             </label>
@@ -137,7 +233,8 @@ function ListYourResturantIndex() {
               required
             />
           </div>
-          <div className="mb-5  w-full">
+
+          <div className="mb-5 w-full">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
               Address
             </label>
@@ -150,119 +247,291 @@ function ListYourResturantIndex() {
             />
           </div>
 
-          <div className="mb-5 w-full">
-            <label className="block mb-2 text-md font-medium text-gray-900 dark:text-white">
-              Add payment methods
-            </label>
-            <select
-              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            >
-              <option>Credit Card</option>
-              <option>Cash</option>
-              <option>PayPal</option>
-              <option>Bank Transfer</option>
-            </select>
-
-            <button
-              type="button"
-              className="border mt-2 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-8 py-2.5 text-center "
-            >
-              Add more
-            </button>
-          </div>
-
-          <div className="mb-5 w-6/12">
+          <div className="mb-5 w-7/12">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Product & Service
+              Latitude
             </label>
             <input
               type="text"
               className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-              value={productService}
-              onChange={(e) => setProductService(e.target.value)}
+              value={latitude}
+              onChange={(e) => setLatitude(e.target.value)}
               required
             />
-            <button
-              type="button"
-              className="border mt-2 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-8 py-2.5 text-center "
-            >
-              Add more
-            </button>
           </div>
 
-          <div className="mb-5 w-5/12">
+          <div className="mb-5 w-7/12">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Specialize
+              Longitude
             </label>
             <input
               type="text"
               className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-              value={specialize}
-              onChange={(e) => setSpecialize(e.target.value)}
+              value={longitude}
+              onChange={(e) => setLongitude(e.target.value)}
               required
             />
-            <button
-              type="button"
-              className="border mt-2 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-8 py-2.5 text-center "
-            >
-              Add more
-            </button>
           </div>
 
           <div className="mb-5 w-full">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Add Description
+              Description
             </label>
             <textarea
-              className="w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
-              id="message"
-              rows={5}
-              placeholder="Enter your message..."
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              required
             />
           </div>
 
           <div className="mb-5 w-full">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Upload menu (pdf)
+              Phone Number
             </label>
             <input
-              className="block w-full p-5 text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
-              onChange={onChange}
-              type="file"
+              type="text"
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              required
             />
           </div>
-        </div>
 
+
+          <div className="mb-5 w-full">
+            <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+              Safety Instructions
+            </label>
+            <textarea
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+              value={saftyInstruction}
+              onChange={(e) => setSaftyInstruction(e.target.value)}
+            />
+          </div>
+
+          <div className="mb-5 w-full">
+            <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+              Additional Information
+            </label>
+            <textarea
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+              value={additionalInfo}
+              onChange={(e) => setAdditionalInfo(e.target.value)}
+            />
+          </div>
+
+          <div className="mb-5 w-7/12">
+            <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+              Upload Menu PDF
+            </label>
+            <input
+              type="file"
+              accept=".pdf"
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+              onChange={onMenuChange}
+              required
+            />
+          </div>
+
+          <div className="mb-5 w-7/12">
+            <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+              Upload Images
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+              onChange={onImageChange}
+            />
+          </div>
+
+          {/* <div className="mb-5 w-full">
+            <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+              Info
+            </label>
+            <input
+              type="text"
+              placeholder="Enter info in format: name,imageUrl"
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const [name, imageUrl] = (
+                    e.target as HTMLInputElement
+                  ).value.split(",");
+                  setInfo([...info, { name, imageUrl }]);
+                  (e.target as HTMLInputElement).value = "";
+                }
+              }}
+            />
+            <ul className="list-disc list-inside">
+              {info.map((item, index) => (
+                <li key={index}>
+                  {item.name} - {item.imageUrl}
+                </li>
+              ))}
+            </ul>
+          </div> */}
+
+          <div className="my-5 w-full">
+            <label className="block mb-2 text-md font-medium text-gray-900 dark:text-white">
+              Opening Time (Use up/down keys on keyboard or enter values)
+            </label>
+
+            <ul className="list-disc list-inside">
+              {openingTime.map((time, index) => (
+                <li key={index}>
+                  {daysOfWeek[index]}: {time?.fromHour}:{time?.fromMinute} {time?.fromAmPm} - {time?.toHour}:{time?.toMinute} {time?.toAmPm} 
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap mt-5 justify-between items-center">
+              {daysOfWeek.map((day, index) => (
+                <div key={index} className="mb-5 w-full">
+                  <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                    {day}
+                  </label>
+                  <div className="flex items-center">
+                    <div className="w-1/4">
+                      <label className="block mb-2 text-sm text-gray-900 dark:text-white">
+                        From
+                      </label>
+                      <div className="flex items-center">
+                        <select
+                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 mr-2"
+                          value={openingTime[index]?.fromHour || ""}
+                          onChange={(e) =>
+                            handleTimeChange(index, "fromHour", e.target.value)
+                          }
+                          disabled={openingTime[index]?.isOff}
+                        >
+                          <option value="">Hour</option>
+                          {Array.from(Array(12).keys()).map((hour) => (
+                            <option
+                              key={hour + 1}
+                              value={(hour + 1).toString().padStart(2, "0")}
+                            >
+                              {(hour + 1).toString().padStart(2, "0")}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 mr-2"
+                          value={openingTime[index]?.fromMinute || ""}
+                          onChange={(e) =>
+                            handleTimeChange(
+                              index,
+                              "fromMinute",
+                              e.target.value
+                            )
+                          }
+                          disabled={openingTime[index]?.isOff}
+                        >
+                          <option value="">Minute</option>
+                          {Array.from(Array(60).keys()).map((minute) => (
+                            <option
+                              key={minute}
+                              value={minute.toString().padStart(2, "0")}
+                            >
+                              {minute.toString().padStart(2, "0")}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                          value={openingTime[index]?.fromAmPm || ""}
+                          onChange={(e) =>
+                            handleTimeChange(index, "fromAmPm", e.target.value)
+                          }
+                          disabled={openingTime[index]?.isOff}
+                        >
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="w-1/4">
+                      <label className="block mb-2 text-sm text-gray-900 dark:text-white">
+                        To
+                      </label>
+                      <div className="flex items-center">
+                        <select
+                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 mr-2"
+                          value={openingTime[index]?.toHour || ""}
+                          onChange={(e) =>
+                            handleTimeChange(index, "toHour", e.target.value)
+                          }
+                          disabled={openingTime[index]?.isOff}
+                        >
+                          <option value="">Hour</option>
+                          {Array.from(Array(12).keys()).map((hour) => (
+                            <option
+                              key={hour + 1}
+                              value={(hour + 1).toString().padStart(2, "0")}
+                            >
+                              {(hour + 1).toString().padStart(2, "0")}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 mr-2"
+                          value={openingTime[index]?.toMinute || ""}
+                          onChange={(e) =>
+                            handleTimeChange(index, "toMinute", e.target.value)
+                          }
+                          disabled={openingTime[index]?.isOff}
+                        >
+                          <option value="">Minute</option>
+                          {Array.from(Array(60).keys()).map((minute) => (
+                            <option
+                              key={minute}
+                              value={minute.toString().padStart(2, "0")}
+                            >
+                              {minute.toString().padStart(2, "0")}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                          value={openingTime[index]?.toAmPm || ""}
+                          onChange={(e) =>
+                            handleTimeChange(index, "toAmPm", e.target.value)
+                          }
+                          disabled={openingTime[index]?.isOff}
+                        >
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="w-1/4 ml-4">
+                      <label className="block mb-2 text-sm text-gray-900 dark:text-white">
+                        Closed
+                      </label>
+                      <input
+                        type="checkbox"
+                        checked={openingTime[index]?.isOff}
+                        onChange={(e) =>
+                          handleCheckboxChange(index, e.target.checked)
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
         <button
           type="submit"
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
           disabled={isLoading}
-          className="text-white bg-[#97d721]  font-medium rounded-lg w-full sm:w-auto px-8 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
         >
-          {isLoading && (
-            <svg
-              aria-hidden="true"
-              role="status"
-              className="inline w-4 h-4 me-3 text-white animate-spin"
-              viewBox="0 0 100 101"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                fill="#E5E7EB"
-              />
-              <path
-                d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                fill="currentColor"
-              />
-            </svg>
-          )}
-          Upload now
+          {isLoading ? "Submitting..." : "Submit"}
         </button>
+        {error && <p className="text-red-500 mt-2">{error}</p>}
       </form>
     </div>
   );

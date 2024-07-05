@@ -5,7 +5,6 @@ import Reviews from "./Reviews";
 
 function ResturantDetailsIndex() {
   const params = useParams();
-  console.log("first", params);
   const pdfUrl = "https://pdfobject.com/pdf/sample.pdf"; // Replace with your PDF URL
   const fileName = "document.pdf"; // Replace with your desired file name
 
