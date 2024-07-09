@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { db } from "../../../../Helpers/Firebase";
 import { doc, getDoc } from "firebase/firestore";
-import DownloadPDFButton from "./DownloadPDF";
+// import DownloadPDFButton from "./DownloadPDF";
 import Reviews from "./Reviews";
 
 interface Restaurant {
