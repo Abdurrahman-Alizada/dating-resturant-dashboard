@@ -2,7 +2,7 @@ import React from "react";
 import { useLocation } from 'react-router-dom'
 
 
-const DownloadPDFButton: React.FC = () => {
+const DownloadPDFButton: React.FC = ({}) => {
   const location = useLocation()
   const {menuURL} = location.state
 const fileName =""
