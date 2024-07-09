@@ -54,7 +54,7 @@ const routes = createBrowserRouter([
         element: <ReservationRequestIndex />,
       },
       {
-        path: "resturant-detail/:resturantId",
+        path: "restaurant-detail/:resturantId",
         element: <ResturantDetails />,
       }
     ],

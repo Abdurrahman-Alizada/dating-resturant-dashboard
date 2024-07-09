@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { storage, firestore, auth } from "../../../Helpers/Firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import { addDoc, collection } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import "firebase/auth";
@@ -16,7 +16,7 @@ function ListYourResturantIndex() {
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [description, setDescription] = useState("");
-  const [imagesUrl, setImagesUrl] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [menuPdfUrl, setMenuPdfUrl] = useState<File | null>(null);
   const [info, setInfo] = useState<{ name: string; imageUrl: string }[]>([]);
@@ -54,15 +54,11 @@ function ListYourResturantIndex() {
   const onImageChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
-      const urls = selectedFiles.map((file) => URL.createObjectURL(file));
-      setImagesUrl(urls);
+      setImageFiles(selectedFiles);
     }
   };
 
-  const generateUniqueFileName = (
-    originalName: string,
-    restaurantName: string
-  ): string => {
+  const generateUniqueFileName = (originalName: string, restaurantName: string): string => {
     const timestamp = new Date().getTime();
     const randomString = Math.random().toString(36).substring(7); // Generate a random string
     const fileExtension = originalName.split(".").pop(); // Get file extension
@@ -70,20 +66,14 @@ function ListYourResturantIndex() {
     return uniqueFileName;
   };
 
-  const uploadImages = async (
-    imageFiles: File[],
-    restaurantName: string
-  ): Promise<string[]> => {
+  const uploadImages = async (imageFiles: File[], restaurantName: string): Promise<string[]> => {
     try {
       const urls: string[] = [];
 
       for (const imageFile of imageFiles) {
-        const uniqueFileName = generateUniqueFileName(
-          imageFile.name,
-          restaurantName
-        );
+        const uniqueFileName = generateUniqueFileName(imageFile.name, restaurantName);
         const storageRef = ref(storage, `restaurant_images/${uniqueFileName}`);
-        const snapshot = await uploadBytes(storageRef, imageFile);
+        const snapshot = await uploadBytesResumable(storageRef, imageFile);
         const downloadURL = await getDownloadURL(snapshot.ref);
         urls.push(downloadURL);
       }
@@ -122,9 +112,11 @@ function ListYourResturantIndex() {
     };
     setOpeningTime(updatedOpeningTime);
   };
+
   const formatTime = (hour: any, minute: any, amPm: any) => {
-    return `${hour||'8'}:${minute||'00'} ${amPm||'AM'}`;
+    return `${hour || '8'}:${minute || '00'} ${amPm || 'AM'}`;
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -137,25 +129,20 @@ function ListYourResturantIndex() {
 
     try {
       // Upload menu PDF
-      const uniqueMenuFileName = generateUniqueFileName(
-        menuPdfUrl.name,
-        restaurantName
-      );
+      const uniqueMenuFileName = generateUniqueFileName(menuPdfUrl.name, restaurantName);
       const menuStorageRef = ref(storage, `hotel_menus/${uniqueMenuFileName}`);
       const menuSnapshot = await uploadBytes(menuStorageRef, menuPdfUrl);
       const menuDownloadURL = await getDownloadURL(menuSnapshot.ref);
 
       // Upload images
-      const uploadedImageUrls = await uploadImages(
-        imagesUrl.map((url) => new File([url], "image.png")),
-        restaurantName
-      );
+      const uploadedImageUrls = await uploadImages(imageFiles, restaurantName);
 
-      const formattedOpeningTime = openingTime.map((time,index) => ({
+      const formattedOpeningTime = openingTime.map((time, index) => ({
         day: daysOfWeek[index],
         from: formatTime(time.fromHour, time.fromMinute, time.fromAmPm),
         to: formatTime(time.toHour, time.toMinute, time.toAmPm),
       }));
+
       // Add restaurant to Firestore
       await addDoc(collection(firestore, "restaurants"), {
         name: restaurantName,
@@ -183,7 +170,7 @@ function ListYourResturantIndex() {
       setLatitude("");
       setLongitude("");
       setDescription("");
-      setImagesUrl([]);
+      setImageFiles([]);
       setPhoneNumber("");
       setMenuPdfUrl(null);
       setInfo([]);
@@ -534,6 +521,7 @@ function ListYourResturantIndex() {
         {error && <p className="text-red-500 mt-2">{error}</p>}
       </form>
     </div>
+
   );
 }
 
