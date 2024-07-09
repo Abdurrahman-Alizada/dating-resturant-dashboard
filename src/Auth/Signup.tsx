@@ -200,7 +200,7 @@ function Signup() {
                   </button>
                 )}
 
-                <button
+                {/* <button
                   type="button"
                   onClick={handleGoogleLogin}
                   className="mt-5 tracking-wide font-semibold bg-[#f8f8f8] text-gray-100 w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none"
@@ -236,7 +236,7 @@ function Signup() {
                   <div className="leading-none px-2 inline-block text-sm text-gray-600 tracking-wide font-medium bg-white transform translate-y-1/2">
                     Or sign Up with e-mail
                   </div>
-                </div>
+                </div> */}
               </form>
               <div className="mx-auto max-w-xs relative">
                 <div className="mb-2">

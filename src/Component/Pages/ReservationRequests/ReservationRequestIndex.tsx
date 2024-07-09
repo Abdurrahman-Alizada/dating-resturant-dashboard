@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, getDoc, where } from 'firebase/firestore';
 import { db } from '../../../Helpers/Firebase'; // Adjust the import path accordingly
 import { Reservation } from '../../../Helpers/types'; // Adjust the import path accordingly
 import moment from 'moment';
@@ -25,11 +25,16 @@ const ReservationList: React.FC = () => {
 
         // Fetch user information for each reservation
         const userIds = fetchedReservations.map(res => res.userId);
-        
-        const userPromises = userIds.map(id => getDoc(doc(db, 'users', id)));
+        // const userRef = db.collection('users').doc(userId);
+
+        const userPromises = userIds.map(async (userId) => {
+          const userDocRef = doc(db, 'users', userId); // Assuming 'userId' is the document ID
+          const userDocSnapshot = await getDoc(userDocRef);
+          return userDocSnapshot;
+      });
         const userDocs = await Promise.all(userPromises);
         const usersData: { [key: string]: { name: string } } = {};
-        // const usersData: { [key: string]: User } = {};
+        console.log("userDoc", userDocs)
         userDocs.forEach(userDoc => {
           if (userDoc.exists()) {
             usersData[userDoc.id] = userDoc.data() as { name: string };
