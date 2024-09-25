@@ -5,8 +5,8 @@ const Sidebar = () => {
   const navigate = useNavigate();
 
   const SIDEBAR_TABS = [
-    { name: "Your resturants", path: "/resturants" },
-    { name: "Add resturant", path: "/list-your-resturant" },
+    { name: "Your Restaurants", path: "/restaurants" },
+    { name: "Add Restaurant", path: "/list-your-restaurant" },
     { name: "Reservation request", path: "/reservation-request" },
   ];
 

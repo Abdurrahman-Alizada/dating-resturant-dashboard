@@ -52,7 +52,7 @@ function Login() {
         const token = await user.getIdToken();
         localStorage.setItem("token", token);
         localStorage.setItem("userId", user.uid);
-        navigate("/resturants");
+        navigate("/restaurants");
       } else {
         setError("No record found for restaurant owner");
         auth.signOut();
@@ -73,7 +73,7 @@ function Login() {
       if (userDoc.exists()) {
         const token = await result.user.getIdToken();
         localStorage.setItem("token", token);
-        navigate("/resturants");
+        navigate("/restaurants");
       } else {
         setError("No record found for restaurant owner");
         auth.signOut();

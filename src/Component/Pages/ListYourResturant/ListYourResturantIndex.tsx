@@ -177,7 +177,7 @@ function ListYourResturantIndex() {
       setOpeningTime([]);
       setSaftyInstruction("");
       setAdditionalInfo("");
-      navigate("/resturants");
+      navigate("/restaurants");
     } catch (error) {
       console.error("Error creating restaurant:", error);
       setError("Failed to create restaurant. Please try again."); // Set error message

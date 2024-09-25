@@ -104,7 +104,7 @@ function Signup() {
       localStorage.setItem("userId", userId);
       localStorage.setItem("token", token);
 
-      navigate("/resturants");
+      navigate("/restaurants");
       setLoader(false);
     } catch (error: any) {
       setError(error.message);

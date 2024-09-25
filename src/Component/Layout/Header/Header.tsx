@@ -59,8 +59,9 @@ function classNames(...classes: any) {
 }
 
 const SIDEBAR_TABS = [
-  { name: "Your resturants", path: "/instagram" },
-  { name: "Add resturant", path: "/amazon" },
+  { name: "Your Restaurants", path: "/restaurants" },
+  { name: "Add Restaurant", path: "/list-your-resturant" },
+  { name: "Reservation request", path: "/reservation-request" },
 ];
 
 const Header = () => {
@@ -85,7 +86,7 @@ const Header = () => {
           >
             <div className="flex lg:flex-1">
               <a href="#" className="-m-1.5 p-1.5">
-                <span className="">Dating resturants</span>
+                <span className="">Dating restaurants</span>
                 
               </a>
             </div>

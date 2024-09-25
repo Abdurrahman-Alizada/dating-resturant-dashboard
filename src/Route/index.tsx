@@ -5,10 +5,10 @@ import Signup from "../Auth/Signup";
 import ForgotPassword from "../Auth/ForgotPassword";
 import MobileNumberLogin from "../Auth/MobileNumberLogin";
 import DefaultLayout from "../Layout/DefaultLayout";
-import Resturants from "../Component/Pages/Resturants/Resturants"
+import Restaurants from "../Component/Pages/Restaurants/Restaurants"
 import NotFound from "../Component/Pages/NotFound/NotFound";
 import ListYourResturantIndex from "../Component/Pages/ListYourResturant/ListYourResturantIndex";
-import ResturantDetails from "../Component/Pages/Resturants/ResturantDetails/ResturantDetailsIndex";
+import ResturantDetails from "../Component/Pages/Restaurants/ResturantDetails/ResturantDetailsIndex";
 import ReservationRequestIndex from "../Component/Pages/ReservationRequests/ReservationRequestIndex";
 
 const routes = createBrowserRouter([
@@ -42,11 +42,11 @@ const routes = createBrowserRouter([
     element: <DefaultLayout />,
     children: [
       {
-        path: "resturants",
-        element: <Resturants />,
+        path: "restaurants",
+        element: <Restaurants />,
       },
       {
-        path: "list-your-resturant",
+        path: "list-your-restaurant",
         element: <ListYourResturantIndex />,
       },
       {
