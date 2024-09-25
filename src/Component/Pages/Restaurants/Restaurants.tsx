@@ -41,7 +41,7 @@ const Restaurants = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Your Restaurants</h1>
-        <Link to="/list-your-resturant">
+        <Link to="/list-your-restaurant">
           <button className="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300">
             Add Restaurant
           </button>

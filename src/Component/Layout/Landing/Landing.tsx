@@ -331,10 +331,10 @@ export default function Landing() {
         <div className="mx-auto max-w-2xl py-32 sm:py-48 lg:py-25">
           <div className="text-center">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-              Dating returant
+            Restaurant Owner Panel
             </h1>
             <p className="mt-6 text-lg leading-8 text-gray-600">
-              Welcome to dating resturant
+              Welcome to the Restaurant area of Sparks
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <a
