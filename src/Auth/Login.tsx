@@ -111,7 +111,7 @@ function Login() {
       >
         <div className="shadow-2xl bg-white rounded-t-full z-50 flex p-20 flex-col h-full">
           <div className="mt-12 flex flex-col justify-between ">
-            <h1 className="text-2xl xl:text-3xl font-bold ">Sign in</h1>
+            <h1 className="text-lg xl:text-xl font-bold ">Signin to restaurant panel</h1>
             <div className="w-full flex-1 mt-6">
               <form className="mx-auto max-w-xs">
                 <input
@@ -130,7 +130,7 @@ function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
-                <div className="flex my-4 justify-between items-center">
+                {/* <div className="flex my-4 justify-between items-center">
                   <div className="flex items-center">
                     <input
                       type="checkbox"
@@ -150,7 +150,7 @@ function Login() {
                   >
                     Forgot password
                   </Link>
-                </div>
+                </div> */}
                 {error && <span className="mt-10 text-red-600">{error}</span>}
 
                 {!loader ? (
@@ -189,12 +189,12 @@ function Login() {
                 )}
               </form>
             </div>
-            <p className="ml-2  text-sm text-gray-900 mt-8">
+            {/* <p className="ml-2  text-sm text-gray-900 mt-8">
               Don’t have any account.{" "}
               <Link to={"/signup"}>
                 <p className="text-[#97d721] font-bold"> Create Account </p>
               </Link>
-            </p>
+            </p> */}
           </div>
         </div>
       </div>
