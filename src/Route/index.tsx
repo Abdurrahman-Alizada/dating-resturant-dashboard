@@ -23,14 +23,14 @@ const routes = createBrowserRouter([
         path: "login",
         element: <Login />,
       },
-      {
-        path: "signup",
-        element: <Signup />,
-      },
-      {
-        path: "forgotpassword",
-        element: <ForgotPassword />,
-      },
+      // {
+      //   path: "signup",
+      //   element: <Signup />,
+      // },
+      // {
+      //   path: "forgotpassword",
+      //   element: <ForgotPassword />,
+      // },
       {
         path: "phone-login",
         element: <MobileNumberLogin />,
