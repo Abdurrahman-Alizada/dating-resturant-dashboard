@@ -1,11 +1,19 @@
 import { useEffect, useState } from "react";
 import { storage, firestore, auth } from "../../../Helpers/Firebase";
-import { ref, uploadBytes, getDownloadURL, uploadBytesResumable } from "firebase/storage";
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  uploadBytesResumable,
+} from "firebase/storage";
 import { addDoc, collection } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import "firebase/auth";
 import { onAuthStateChanged } from "firebase/auth";
 import { OpeningTime } from "../../../Helpers/types";
+import Select from "react-select";
+import DatePicker from "react-datepicker"; // Import DatePicker
+import "react-datepicker/dist/react-datepicker.css"; // Import styles
 
 function ListYourResturantIndex() {
   const navigate = useNavigate();
@@ -20,15 +28,23 @@ function ListYourResturantIndex() {
   const [description, setDescription] = useState("");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [minDeposit, setMinDeposit] = useState(0);
+  const [isMinDeposit, setIsMinDeposit] = useState(false);
   const [menuPdfUrl, setMenuPdfUrl] = useState<File | null>(null);
   const [info, setInfo] = useState<{ name: string; imageUrl: string }[]>([]);
   const [openingTime, setOpeningTime] = useState<OpeningTime[]>([]);
+  const [selectedAtmosphere, setSelectedAtmosphere] = useState([]);
+  const [selectedCuisine, setSelectedCuisine] = useState([]);
 
   const [saftyInstruction, setSaftyInstruction] = useState("");
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [isLoading, setLoading] = useState(false); // State to track loading state
   const [error, setError] = useState<string | null>(null); // State to track errors
   const [userId, serUserId] = useState("");
+
+  const [hasDiscount, setHasDiscount] = useState(false);
+  const [discountedDays, setDiscountedDays] = useState([]);
+  const [discountPercentage, setDiscountPercentage] = useState(0);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -60,7 +76,10 @@ function ListYourResturantIndex() {
     }
   };
 
-  const generateUniqueFileName = (originalName: string, restaurantName: string): string => {
+  const generateUniqueFileName = (
+    originalName: string,
+    restaurantName: string
+  ): string => {
     const timestamp = new Date().getTime();
     const randomString = Math.random().toString(36).substring(7); // Generate a random string
     const fileExtension = originalName.split(".").pop(); // Get file extension
@@ -68,12 +87,18 @@ function ListYourResturantIndex() {
     return uniqueFileName;
   };
 
-  const uploadImages = async (imageFiles: File[], restaurantName: string): Promise<string[]> => {
+  const uploadImages = async (
+    imageFiles: File[],
+    restaurantName: string
+  ): Promise<string[]> => {
     try {
       const urls: string[] = [];
 
       for (const imageFile of imageFiles) {
-        const uniqueFileName = generateUniqueFileName(imageFile.name, restaurantName);
+        const uniqueFileName = generateUniqueFileName(
+          imageFile.name,
+          restaurantName
+        );
         const storageRef = ref(storage, `restaurant_images/${uniqueFileName}`);
         const snapshot = await uploadBytesResumable(storageRef, imageFile);
         const downloadURL = await getDownloadURL(snapshot.ref);
@@ -116,14 +141,31 @@ function ListYourResturantIndex() {
   };
 
   const formatTime = (hour: any, minute: any, amPm: any) => {
-    return `${hour || '8'}:${minute || '00'} ${amPm || 'AM'}`;
+    return `${hour || "8"}:${minute || "00"} ${amPm || "AM"}`;
+  };
+
+  const handleDateChange = (date) => {
+    setDiscountedDays(prevDays => {
+      const isAlreadySelected = prevDays.some(d => d.getTime() === date.getTime());
+      if (isAlreadySelected) {
+        return prevDays.filter(d => d.getTime() !== date.getTime());
+      } else {
+        return [...prevDays, date];
+      }
+    });
+  };
+
+  const handleRemoveDay = (dayToRemove) => {
+    setDiscountedDays(prevDays => 
+      prevDays.filter(day => day.getTime() !== dayToRemove.getTime())
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!menuPdfUrl) {
-      console.error("Please upload a PDF file");
+      alert("Please upload a PDF file");
       return;
     }
 
@@ -131,7 +173,10 @@ function ListYourResturantIndex() {
 
     try {
       // Upload menu PDF
-      const uniqueMenuFileName = generateUniqueFileName(menuPdfUrl.name, restaurantName);
+      const uniqueMenuFileName = generateUniqueFileName(
+        menuPdfUrl.name,
+        restaurantName
+      );
       const menuStorageRef = ref(storage, `hotel_menus/${uniqueMenuFileName}`);
       const menuSnapshot = await uploadBytes(menuStorageRef, menuPdfUrl);
       const menuDownloadURL = await getDownloadURL(menuSnapshot.ref);
@@ -151,8 +196,10 @@ function ListYourResturantIndex() {
         category: category,
         address: address,
         latitude: latitude,
-        numberOfPeople:numberOfPeople,
+        numberOfPeople: numberOfPeople,
         startingPrice: price,
+        atmosphere: selectedAtmosphere,
+        cuisines: selectedCuisine,
         longitude: longitude,
         description: description,
         imagesUrl: uploadedImageUrls,
@@ -162,7 +209,12 @@ function ListYourResturantIndex() {
         openingTime: formattedOpeningTime,
         saftyInstruction: saftyInstruction,
         additionalInfo: additionalInfo,
+        isMinDeposit: isMinDeposit,
+        minDeposit: minDeposit,
         userId: userId,
+        hasDiscount: hasDiscount,
+        discountedDays: discountedDays,
+        discountPercentage: discountPercentage,
       });
 
       console.log("Restaurant created successfully!");
@@ -174,6 +226,9 @@ function ListYourResturantIndex() {
       setLatitude("");
       setNumberOfPeople("");
       setPrice(0);
+      setHasDiscount(false);
+      setDiscountedDays([]);
+      setDiscountPercentage(0);
       setLongitude("");
       setDescription("");
       setImageFiles([]);
@@ -192,12 +247,20 @@ function ListYourResturantIndex() {
     }
   };
 
+  const handleAtmosphereChange = (selectedOptions: any) => {
+    setSelectedAtmosphere(selectedOptions.map((option: any) => option.value));
+  };
+
+  const handleCuisineChange = (selectedOptions: any) => {
+    setSelectedCuisine(selectedOptions.map((option: any) => option.value));
+  };
+
   return (
     <div className="p-5 shadow-lg">
       <p className="text-lg font-bold mb-10">List your Restaurant</p>
       <form className="max-w-6xl" onSubmit={handleSubmit}>
         <div className="flex flex-wrap justify-between items-center">
-          <div className="mb-5 w-6/12">
+          <div className="mb-5 w-[49%]">
             <label className="block mb-2 text-md font-medium text-gray-900 dark:text-white">
               Choose category
             </label>
@@ -214,9 +277,9 @@ function ListYourResturantIndex() {
             </select>
           </div>
 
-          <div className="mb-5 w-5/12">
+          <div className="mb-5 w-[49%]">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Business Name
+              Restaurant Name
             </label>
             <input
               type="text"
@@ -226,6 +289,94 @@ function ListYourResturantIndex() {
               required
             />
           </div>
+
+          <div className="mb-4 w-[49%]">
+            <label className="block mb-2 text-sm font-medium text-gray-900 ">
+              Atmosphere
+            </label>
+            <Select
+              isMulti
+              options={[
+                { value: "Casual", label: "Casual" },
+                { value: "Formal", label: "Formal" },
+                { value: "Family", label: "Family" },
+                { value: "Romantic", label: "Romantic" },
+              ]}
+              value={selectedAtmosphere.map((atm) => ({
+                value: atm,
+                label: atm,
+              }))}
+              onChange={handleAtmosphereChange}
+            />
+          </div>
+
+          <div className="mb-4 w-[49%]">
+            <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+              Cuisine
+            </label>
+            <Select
+              isMulti
+              options={[
+                { value: "Italian", label: "Italian" },
+                { value: "Chinese", label: "Chinese" },
+                { value: "Mexican", label: "Mexican" },
+                { value: "Indian", label: "Indian" },
+              ]}
+              value={selectedCuisine.map((cuisine) => ({
+                value: cuisine,
+                label: cuisine,
+              }))}
+              onChange={handleCuisineChange}
+            />
+          </div>
+
+          <div className="mb-5 w-full">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={hasDiscount}
+              onChange={(e) => setHasDiscount(e.target.checked)}
+              className="form-checkbox h-5 w-5 text-blue-600"
+            />
+            <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+              Add Discount
+            </span>
+          </label>
+        </div>
+
+       {hasDiscount && (
+          <>
+            <div className="mb-5 w-full">
+              <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                Select Discounted Days
+              </label>
+              <DatePicker
+                selected={null}
+                onChange={handleDateChange}
+                inline
+                highlightDates={discountedDays}
+                calendarClassName="custom-calendar"
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+              />
+              <SelectedDaysList days={discountedDays} onRemove={handleRemoveDay} />
+            </div>
+
+            <div className="mb-5 w-full">
+              <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                Discount Percentage
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                value={discountPercentage}
+                onChange={(e) => setDiscountPercentage(Number(e.target.value))}
+                required={hasDiscount}
+              />
+            </div>
+          </>
+        )}
 
           <div className="mb-5 w-full">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
@@ -265,7 +416,7 @@ function ListYourResturantIndex() {
             />
           </div>
 
-          <div className="mb-5 w-7/12">
+          <div className="mb-5 w-[49%]">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
               Latitude
             </label>
@@ -278,7 +429,7 @@ function ListYourResturantIndex() {
             />
           </div>
 
-          <div className="mb-5 w-7/12">
+          <div className="mb-5 w-[49%]">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
               Longitude
             </label>
@@ -316,6 +467,33 @@ function ListYourResturantIndex() {
             />
           </div>
 
+          <div className="mb-5 w-7/12 flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-900 dark:text-white">
+              Minimum Deposit
+            </label>
+            <div className="flex items-center space-x-3">
+              <span className="text-gray-500 text-sm">Enable</span>
+              <input
+                type="checkbox"
+                className="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                onChange={(e) => setIsMinDeposit(!isMinDeposit)}
+              />
+            </div>
+          </div>
+
+          {isMinDeposit && (
+            <div className="mb-5 w-7/12">
+              <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                Enter Minimum Deposit
+              </label>
+              <input
+                type="number"
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                placeholder="Enter amount"
+                onChange={(e) => setMinDeposit(Number(e.target.value))}
+              />
+            </div>
+          )}
 
           <div className="mb-5 w-full">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
@@ -401,7 +579,9 @@ function ListYourResturantIndex() {
             <ul className="list-disc list-inside">
               {openingTime.map((time, index) => (
                 <li key={index}>
-                  {daysOfWeek[index]}: {time?.fromHour}:{time?.fromMinute} {time?.fromAmPm} - {time?.toHour}:{time?.toMinute} {time?.toAmPm} 
+                  {daysOfWeek[index]}: {time?.fromHour}:{time?.fromMinute}{" "}
+                  {time?.fromAmPm} - {time?.toHour}:{time?.toMinute}{" "}
+                  {time?.toAmPm}
                 </li>
               ))}
             </ul>
@@ -552,8 +732,24 @@ function ListYourResturantIndex() {
         {error && <p className="text-red-500 mt-2">{error}</p>}
       </form>
     </div>
-
   );
 }
 
 export default ListYourResturantIndex;
+
+const SelectedDaysList = ({ days, onRemove }) => (
+  <ul className="mt-2 space-y-1">
+    {days.map((day, index) => (
+      <li key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
+        <span>{day.toDateString()}</span>
+        <button
+          onClick={() => onRemove(day)}
+          className="text-red-500 hover:text-red-700"
+          type="button"
+        >
+          ✕
+        </button>
+      </li>
+    ))}
+  </ul>
+);

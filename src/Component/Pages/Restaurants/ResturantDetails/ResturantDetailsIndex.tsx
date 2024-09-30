@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { db } from "../../../../Helpers/Firebase";
-import { doc, getDoc } from "firebase/firestore";
-// import DownloadPDFButton from "./DownloadPDF";
-import Reviews from "./Reviews";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import DownloadPDFButton from "./DownloadPDF";
 
 interface Restaurant {
   name: string;
@@ -11,7 +10,7 @@ interface Restaurant {
   description: string;
   imagesUrl: string[];
   details: string;
-  menuURL: string;
+  menuPdfUrl: string;
   additionalInfo: string;
   saftyInstruction: string;
   openingTime: { day: string; from: string; to: string }[];
@@ -20,15 +19,14 @@ interface Restaurant {
 const ResturantDetailsIndex: React.FC = () => {
   const { restaurantId } = useParams<{ restaurantId: string }>();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     const fetchRestaurantDetails = async () => {
       try {
-        // const docRef = ;
         const docSnap = await getDoc(
           doc(db, "restaurants", restaurantId || "")
         );
-        console.log("fetch", docSnap);
         if (docSnap.exists()) {
           setRestaurant(docSnap.data() as Restaurant);
         } else {
@@ -42,11 +40,26 @@ const ResturantDetailsIndex: React.FC = () => {
     if (restaurantId) {
       fetchRestaurantDetails();
     }
-    console.log("first", restaurantId);
   }, [restaurantId]);
 
-  const additionalInfoList = restaurant?.additionalInfo.split('.').filter(info => info);
-  const safetyInstructionsList = restaurant?.saftyInstruction.split('.').filter(info => info);
+  const handleSave = async () => {
+    if (restaurantId && restaurant) {
+      try {
+        await setDoc(doc(db, "restaurants", restaurantId), restaurant);
+        alert("Restaurant details updated successfully");
+        setEditMode(false); // Exit edit mode after saving
+      } catch (error) {
+        console.error("Error updating restaurant:", error);
+      }
+    }
+  };
+
+  const additionalInfoList = restaurant?.additionalInfo
+    .split(".")
+    .filter((info) => info);
+  const safetyInstructionsList = restaurant?.saftyInstruction
+    .split(".")
+    .filter((info) => info);
 
   if (!restaurant) {
     return <div>Loading...</div>;
@@ -64,40 +77,74 @@ const ResturantDetailsIndex: React.FC = () => {
             />
           </div>
           <div className="md:ml-6 flex-grow">
-            <h2 className="text-3xl font-bold text-gray-900">
-              {restaurant.name}
-            </h2>
-            <p className="mt-2 text-gray-700">{restaurant.address}</p>
-            <p className="mt-2 text-gray-700">{restaurant.description}</p>
-            <div className="flex items-center mt-4">
-              <div className="flex items-center">
-                {[...Array(4)].map((_, index) => (
-                  <svg
-                    key={index}
-                    className="w-5 h-5 text-yellow-500"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9.049 2.927a1 1 0 011.902 0l1.317 4.055a1 1 0 00.95.69h4.26a1 1 0 01.592 1.805l-3.452 2.5a1 1 0 00-.364 1.118l1.317 4.056a1 1 0 01-1.54 1.118l-3.452-2.5a1 1 0 00-1.175 0l-3.452 2.5a1 1 0 01-1.54-1.118l1.317-4.056a1 1 0 00-.364-1.118l-3.452-2.5a1 1 0 01.592-1.805h4.26a1 1 0 00.95-.69L9.049 2.927z" />
-                  </svg>
-                ))}
-                <svg
-                  className="w-5 h-5 text-gray-300"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M9.049 2.927a1 1 0 011.902 0l1.317 4.055a1 1 0 00.95.69h4.26a1 1 0 01.592 1.805l-3.452 2.5a1 1 0 00-.364 1.118l1.317 4.056a1 1 0 01-1.54 1.118l-3.452-2.5a1 1 0 00-1.175 0l-3.452 2.5a1 1 0 01-1.54-1.118l1.317-4.056a1 1 0 00-.364-1.118l-3.452-2.5a1 1 0 01.592-1.805h4.26a1 1 0 00.95-.69L9.049 2.927z" />
-                </svg>
-              </div>
-              <span className="ml-2 text-gray-600">(70 reviews)</span>
+            <div className="mt-3">
+              {editMode ? (
+                <input
+                  type="text"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                  value={restaurant?.name || ""}
+                  onChange={(e) =>
+                    setRestaurant({ ...restaurant!, name: e.target.value })
+                  }
+                />
+              ) : (
+                <p className="mt-2 text-gray-700">{restaurant?.name}</p>
+              )}
             </div>
-            <div className="mt-4">
-              <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
-                Read reviews
-              </span>
+
+            <div className="mt-3">
+              {editMode ? (
+                <input
+                  type="text"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                  value={restaurant?.address || ""}
+                  onChange={(e) =>
+                    setRestaurant({ ...restaurant!, address: e.target.value })
+                  }
+                />
+              ) : (
+                <p className="mt-2 text-gray-700">{restaurant?.address}</p>
+              )}
             </div>
+
+            <div className="mt-3">
+              {editMode ? (
+                <textarea
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                  value={restaurant?.description || ""}
+                  onChange={(e) =>
+                    setRestaurant({
+                      ...restaurant!,
+                      description: e.target.value,
+                    })
+                  }
+                />
+              ) : (
+                <p className="mt-2 text-gray-700">{restaurant?.description}</p>
+              )}
+            </div>
+
+            {/* Edit Button */}
+            <button
+              className="mt-6 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              onClick={() => setEditMode(!editMode)}
+            >
+              {editMode ? "Cancel Edit" : "Edit"}
+            </button>
+
+            {/* Save Button */}
+            {editMode && (
+              <button
+                className="mt-6 mx-2 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+                onClick={handleSave}
+              >
+                Save Changes
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Additional Information */}
         <div className="mt-8">
           <h3 className="text-2xl font-semibold">Additional Information</h3>
           <ul className="list-disc list-inside mt-2 text-gray-700">
@@ -105,6 +152,8 @@ const ResturantDetailsIndex: React.FC = () => {
               <li key={index}>{info}</li>
             ))}
           </ul>
+
+          {/* Opening Times */}
           <h3 className="text-2xl font-semibold mt-8">Opening Times</h3>
           <ul className="list-disc list-inside mt-2 text-gray-700">
             {restaurant?.openingTime?.map((time, index) => (
@@ -113,19 +162,22 @@ const ResturantDetailsIndex: React.FC = () => {
               </li>
             ))}
           </ul>
+
+          {/* Safety Instructions */}
           <h3 className="text-2xl mt-5 font-semibold">Safety Instructions</h3>
           <ul className="list-disc list-inside mt-2 text-gray-700">
             {safetyInstructionsList?.map((instruction, index) => (
               <li key={index}>{instruction}</li>
             ))}
           </ul>
+
+          {/* Menu PDF */}
           <h3 className="text-2xl font-semibold mt-8">Menu PDF</h3>
-          {/* <DownloadPDFButton
-            pdfUrl={restaurant.menuURL}
+          <DownloadPDFButton
+            pdfUrl={restaurant.menuPdfUrl}
             fileName={restaurant.name}
-          /> */}
+          />
         </div>
-        <Reviews />
       </div>
     </div>
   );
