@@ -196,7 +196,7 @@ function ListYourResturantIndex() {
         category: category,
         address: address,
         latitude: latitude,
-        numberOfPeople: numberOfPeople,
+        numberOfPeoples: numberOfPeople,
         price: price,
         atmosphere: selectedAtmosphere,
         cuisines: selectedCuisine,
