@@ -65,7 +65,7 @@ const Restaurants = () => {
               <h2 className="text-xl font-semibold text-gray-900 mb-2">{restaurant.name}</h2>
               <p className="text-gray-700 mb-2">{restaurant.address}</p>
               <p className="text-gray-700 mb-4">{restaurant.description}</p>
-              <div className="flex items-center justify-between">
+              {/* <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1">
                   {[...Array(4)].map((_, index) => (
                     <svg
@@ -93,7 +93,7 @@ const Restaurants = () => {
               </div>
               <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded dark:bg-blue-200 dark:text-blue-800">
                 Read reviews
-              </span>
+              </span> */}
             </div>
           </Link>
         ))}
